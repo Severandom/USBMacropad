@@ -1,0 +1,104 @@
+#include <Keyboard.h>
+
+// ── Pin Definitions ──────────────────────────────────────────
+const int PIN_COPY        = 2;
+const int PIN_PASTE       = 3;
+const int PIN_UNDO        = 4;
+const int PIN_REDO        = 5;
+const int PIN_POWER       = 7;
+
+// ── State Tracking ───────────────────────────────────────────
+bool lastCopy        = HIGH;
+bool lastPaste       = HIGH;
+bool lastUndo        = HIGH;
+bool lastRedo        = HIGH;
+bool lastPowerSwitch = HIGH;
+
+bool padEnabled      = true;
+
+// ── Debounce ─────────────────────────────────────────────────
+const unsigned long DEBOUNCE_MS = 50;
+unsigned long lastDebounceTime  = 0;
+
+// ─────────────────────────────────────────────────────────────
+
+void setup() {
+  pinMode(PIN_COPY,  INPUT_PULLUP);
+  pinMode(PIN_PASTE, INPUT_PULLUP);
+  pinMode(PIN_UNDO,  INPUT_PULLUP);
+  pinMode(PIN_REDO,  INPUT_PULLUP);
+  pinMode(PIN_POWER, INPUT_PULLUP);
+
+  Keyboard.begin();
+
+  lastPowerSwitch = digitalRead(PIN_POWER);
+  padEnabled = (lastPowerSwitch == HIGH);
+}
+
+// ─────────────────────────────────────────────────────────────
+
+void sendCombo(uint8_t modifier, char key) {
+  Keyboard.press(modifier);
+  Keyboard.press(key);
+  delay(30);
+  Keyboard.releaseAll();
+}
+
+// ─────────────────────────────────────────────────────────────
+
+void loop() {
+  unsigned long now = millis();
+
+  bool readCopy   = digitalRead(PIN_COPY);
+  bool readPaste  = digitalRead(PIN_PASTE);
+  bool readUndo   = digitalRead(PIN_UNDO);
+  bool readRedo   = digitalRead(PIN_REDO);
+  bool readPower  = digitalRead(PIN_POWER);
+
+  // ── Power toggle ──────────────────────────────────────────
+  if (readPower != lastPowerSwitch) {
+    if ((now - lastDebounceTime) > DEBOUNCE_MS) {
+      padEnabled = (readPower == HIGH);
+      lastPowerSwitch = readPower;
+      lastDebounceTime = now;
+    }
+  }
+
+  if (!padEnabled) return;
+
+  // ── Momentary buttons ─────────────────────────────────────
+
+  if (readCopy == LOW && lastCopy == HIGH) {
+    if ((now - lastDebounceTime) > DEBOUNCE_MS) {
+      sendCombo(KEY_LEFT_CTRL, 'c');
+      lastDebounceTime = now;
+    }
+  }
+  lastCopy = readCopy;
+
+  if (readPaste == LOW && lastPaste == HIGH) {
+    if ((now - lastDebounceTime) > DEBOUNCE_MS) {
+      sendCombo(KEY_LEFT_CTRL, 'v');
+      lastDebounceTime = now;
+    }
+  }
+  lastPaste = readPaste;
+
+  if (readUndo == LOW && lastUndo == HIGH) {
+    if ((now - lastDebounceTime) > DEBOUNCE_MS) {
+      sendCombo(KEY_LEFT_CTRL, 'z');
+      lastDebounceTime = now;
+    }
+  }
+  lastUndo = readUndo;
+
+  if (readRedo == LOW && lastRedo == HIGH) {
+    if ((now - lastDebounceTime) > DEBOUNCE_MS) {
+      sendCombo(KEY_LEFT_CTRL, 'y');
+      lastDebounceTime = now;
+    }
+  }
+  lastRedo = readRedo;
+
+  delay(10);
+}
